@@ -1,0 +1,576 @@
+<title>Fourfold</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one-screen card table. Opponents along the top, piles in the middle, your fanned hand docked at the bottom.
+   Single deliberate look: a dark lacquered table with paper cards, so it stays dark in either host theme. */
+:root {
+  --table: #0f141c;
+  --table-2: #1a2230;
+  --rail: #263042;
+  --ink: #0a0d13;
+  --paper: #f2eee6;
+  --text: #e9e5dc;
+  --muted: #8e98a8;
+  --sun: #e8a838;
+  --tide: #23968e;
+  --ember: #d6503a;
+  --moon: #7b5cc8;
+  --font-display: "Big Shoulders Display", "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --cw: clamp(54px, 14.5vw, 86px);
+  --cwt: clamp(68px, 19vw, 108px);
+  color-scheme: dark;
+}
+html { height: 100%; box-sizing: border-box; background: var(--table); }
+*, *::before, *::after { box-sizing: inherit; }
+body {
+  height: 100%;
+  margin: 0;
+  background: radial-gradient(120% 80% at 50% 45%, var(--table-2), var(--table) 70%);
+  background-color: var(--table);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  overflow: hidden;
+}
+button { font: inherit; color: inherit; }
+button:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px 8px;
+  gap: 8px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Top bar */
+.bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand svg { width: 22px; height: 22px; }
+.brand h1 { font-family: var(--font-display); font-weight: 900; font-size: 26px; letter-spacing: .04em; text-transform: uppercase; margin: 0; line-height: 1; }
+.scores { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.score { padding: 3px 9px; border-radius: 99px; background: var(--rail); color: var(--muted); }
+.score b { color: var(--text); font-weight: 600; margin-right: 3px; }
+.score.on { box-shadow: inset 0 0 0 1.5px var(--sun); }
+.target { padding: 3px 4px; color: var(--muted); }
+.bar-actions { display: flex; gap: 6px; }
+.ghost { background: transparent; border: 1px solid var(--rail); border-radius: 8px; padding: 6px 11px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.ghost:hover { border-color: var(--muted); }
+
+/* Opponents */
+.seats { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.seat {
+  display: grid; gap: 6px; justify-items: center;
+  padding: 8px 14px 9px; border-radius: 14px;
+  background: color-mix(in srgb, var(--rail) 55%, transparent);
+  border: 1.5px solid transparent;
+  min-width: 104px;
+  transition: border-color .25s, background .25s;
+}
+.seat.active { border-color: var(--sun); background: color-mix(in srgb, var(--sun) 12%, var(--rail)); }
+.who { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 14px; }
+.avatar { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--paper); color: var(--ink); font-family: var(--font-display); font-weight: 900; font-size: 15px; }
+.flag { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); background: var(--sun); padding: 2px 6px; border-radius: 4px; }
+.fan { display: flex; height: 22px; padding-left: 8px; }
+.mini { width: 15px; height: 22px; border-radius: 3px; margin-left: -8px; background: var(--ink) repeating-linear-gradient(45deg, transparent 0 3px, color-mix(in srgb, var(--paper) 14%, transparent) 3px 4px); border: 1px solid color-mix(in srgb, var(--paper) 30%, transparent); }
+.count { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Table */
+.table { display: grid; place-content: center; justify-items: center; gap: 14px; min-height: 0; }
+.piles { display: flex; align-items: center; gap: clamp(22px, 7vw, 56px); }
+.table .card { --cw: var(--cwt); }
+.pile { position: relative; padding: 0; border: 0; background: none; }
+.pile.draw { cursor: pointer; border-radius: 12px; }
+.pile.draw .card { box-shadow: 3px 3px 0 -1px var(--ink), 3px 3px 0 0 color-mix(in srgb, var(--paper) 25%, transparent), 6px 6px 0 -1px var(--ink), 6px 6px 0 0 color-mix(in srgb, var(--paper) 18%, transparent), 0 10px 22px rgba(0,0,0,.45); transition: transform .15s; }
+.pile.draw:not(:disabled):hover .card { transform: translateY(-4px); }
+.pile.draw:not(:disabled) .card { outline: 2px solid var(--sun); outline-offset: 4px; }
+.pile.draw:disabled { cursor: default; }
+.pile-label { position: absolute; bottom: -22px; left: 0; right: 0; text-align: center; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.discard { width: var(--cwt); aspect-ratio: 5 / 7.2; position: relative; }
+.discard .card { position: absolute; inset: 0; transform: rotate(var(--r, 0deg)); }
+.discard .under { filter: brightness(.7); }
+.discard .topcard.wild { box-shadow: 0 0 0 4px var(--chosen), 0 10px 22px rgba(0,0,0,.45); }
+.discard .fresh { animation: land .32s cubic-bezier(.2,.8,.3,1.2); }
+@keyframes land { from { transform: translateY(-34px) rotate(calc(var(--r, 0deg) - 18deg)) scale(1.08); opacity: .3; } }
+
+.stateline { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px 4px 8px; border-radius: 99px; background: var(--rail); font-size: 13px; font-weight: 600; }
+.chip svg { width: 16px; height: 16px; color: var(--c, var(--text)); }
+.chip.order svg { transition: transform .3s; }
+.chip.order.rev svg { transform: scaleX(-1); }
+.status { margin: 0; min-height: 2.6em; max-width: 46ch; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.35; text-wrap: balance; }
+
+/* Your area */
+.me { display: grid; gap: 4px; min-width: 0; }
+.controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.turn { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.turn.mine { color: var(--sun); }
+.btns { display: flex; gap: 6px; }
+.btns button { border: 0; border-radius: 9px; padding: 8px 14px; font-weight: 700; font-size: 14px; background: var(--paper); color: var(--ink); cursor: pointer; }
+.btns button:disabled { background: var(--rail); color: var(--muted); cursor: default; }
+.btns .call:not(:disabled) { background: var(--sun); }
+.btns .call.set { background: var(--rail); color: var(--sun); }
+.hand { display: flex; overflow-x: auto; overflow-y: visible; padding: 22px 6px 10px; scrollbar-width: thin; }
+.hand > .card:first-child { margin-left: auto; }
+.hand > .card:last-child { margin-right: auto; }
+.hand > .card + .card { margin-left: calc(var(--cw) * var(--ov, .08)); }
+
+/* Cards */
+.card {
+  --c: var(--ink);
+  width: var(--cw);
+  aspect-ratio: 5 / 7.2;
+  flex: none;
+  position: relative;
+  display: block;
+  padding: 0; border: 0;
+  border-radius: calc(var(--cw) * .11);
+  background: var(--paper);
+  color: var(--c);
+  box-shadow: 0 1px 0 rgba(0,0,0,.35), 0 6px 14px rgba(0,0,0,.4);
+  font-family: var(--font-display);
+  line-height: 1;
+  user-select: none;
+}
+.card[data-suit="sun"] { --c: var(--sun); }
+.card[data-suit="tide"] { --c: var(--tide); }
+.card[data-suit="ember"] { --c: var(--ember); }
+.card[data-suit="moon"] { --c: var(--moon); }
+.card .frame { position: absolute; inset: 6.5%; border: calc(var(--cw) * .032) solid var(--c); border-radius: calc(var(--cw) * .065); }
+.card .face { position: absolute; inset: 0; display: grid; place-items: center; }
+.card .num { font-weight: 900; font-size: calc(var(--cw) * .6); letter-spacing: -.02em; }
+.card .num.sm { font-size: calc(var(--cw) * .44); }
+.card .ul { text-decoration: underline; text-decoration-thickness: .07em; text-underline-offset: .08em; }
+.card .glyph { width: 54%; display: grid; place-items: center; gap: 2px; }
+.card .glyph svg { width: 100%; height: auto; display: block; }
+.card .corner { position: absolute; top: 12%; left: 14%; font-weight: 900; font-size: calc(var(--cw) * .19); display: flex; }
+.card .corner svg { width: 1em; height: 1em; }
+.card .corner.br, .card .pip.br { transform: rotate(180deg); }
+.card .corner.br { top: auto; left: auto; bottom: 12%; right: 14%; }
+.card .pip { position: absolute; top: 12%; right: 14%; width: calc(var(--cw) * .17); display: flex; }
+.card .pip svg { width: 100%; height: auto; }
+.card .pip.br { top: auto; right: auto; bottom: 12%; left: 14%; }
+.card.wild { background: var(--ink); color: var(--paper); }
+.card.wild .frame { border-color: color-mix(in srgb, var(--paper) 30%, transparent); }
+.card.wild .glyph { width: 62%; }
+.card.wild .glyph b { font-weight: 900; font-size: calc(var(--cw) * .26); }
+.card.wild.k-shift4 .glyph svg { width: 78%; margin: 0 auto; }
+.card.back { background: var(--ink) repeating-linear-gradient(45deg, transparent 0 5px, color-mix(in srgb, var(--paper) 9%, transparent) 5px 7px); }
+.card.back .frame { border-color: color-mix(in srgb, var(--paper) 26%, transparent); }
+.card.back .glyph { width: 42%; opacity: .9; }
+
+.hand .card { transition: transform .15s, filter .2s, box-shadow .15s; cursor: default; }
+.hand .card.playable { cursor: pointer; transform: translateY(-10px); box-shadow: 0 0 0 2px var(--paper), 0 10px 20px rgba(0,0,0,.5); }
+.hand .card.playable:hover, .hand .card.playable:focus-visible { transform: translateY(-18px); z-index: 2; }
+.hand .card.dim { filter: saturate(.45) brightness(.62); }
+.hand .card.drawn { box-shadow: 0 0 0 3px var(--sun), 0 10px 20px rgba(0,0,0,.5); }
+
+/* Sheets */
+.overlay { position: fixed; inset: 0; background: rgba(5,7,11,.66); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); z-index: 20; }
+.sheet { width: min(440px, 100%); max-height: 100%; overflow-y: auto; background: var(--table-2); border: 1px solid var(--rail); border-radius: 18px; padding: 22px; display: grid; gap: 16px; box-shadow: 0 30px 60px rgba(0,0,0,.5); }
+.sheet h2 { font-family: var(--font-display); font-weight: 900; font-size: 30px; text-transform: uppercase; letter-spacing: .03em; margin: 0; line-height: 1; text-wrap: balance; }
+.sheet p, .sheet li { margin: 0; color: var(--muted); line-height: 1.5; }
+.sheet ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.sheet strong { color: var(--text); font-weight: 600; }
+.suits { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.suit-btn { display: flex; align-items: center; gap: 10px; padding: 14px; border-radius: 12px; border: 0; background: var(--c); color: var(--ink); font-weight: 700; font-size: 16px; cursor: pointer; }
+.suit-btn svg { width: 26px; height: 26px; }
+.suit-btn small { margin-left: auto; font-weight: 600; opacity: .7; font-variant-numeric: tabular-nums; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.primary { border: 0; border-radius: 10px; padding: 10px 18px; font-weight: 700; background: var(--paper); color: var(--ink); cursor: pointer; }
+.secondary { border: 1px solid var(--rail); border-radius: 10px; padding: 10px 16px; font-weight: 600; background: transparent; cursor: pointer; }
+.field { display: grid; gap: 8px; }
+.field > span { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.seg { display: flex; gap: 6px; }
+.seg button { flex: 1; padding: 9px 0; border-radius: 9px; border: 1px solid var(--rail); background: transparent; font-weight: 600; cursor: pointer; font-variant-numeric: tabular-nums; }
+.seg button[aria-pressed="true"] { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+.tally { display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
+.tally div { display: flex; justify-content: space-between; padding: 7px 10px; border-radius: 8px; background: var(--rail); }
+.tally div.win { box-shadow: inset 0 0 0 1.5px var(--sun); }
+.tally span:last-child { color: var(--muted); }
+.legend { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center; }
+.legend .card { --cw: 40px; }
+
+@media (max-width: 480px) {
+  .brand h1 { font-size: 22px; }
+  .seat { min-width: 0; padding: 6px 10px 7px; }
+  .btns button { padding: 8px 11px; }
+}
+@media (max-height: 640px) {
+  :root { --cwt: clamp(58px, 14vh, 90px); }
+  .seat .fan { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand"><span id="brandMark"></span><h1>Fourfold</h1></div>
+    <div class="scores" id="scores"></div>
+    <div class="bar-actions">
+      <button type="button" class="ghost" id="rulesBtn">Rules</button>
+      <button type="button" class="ghost" id="newBtn">New game</button>
+    </div>
+  </header>
+  <section class="seats" id="seats" aria-label="Opponents"></section>
+  <section class="table">
+    <div class="piles">
+      <button type="button" class="pile draw" id="drawPile" aria-label="Draw a card"></button>
+      <div class="pile discard" id="discard" aria-label="Discard pile"></div>
+    </div>
+    <div class="stateline" id="stateLine"></div>
+    <p class="status" id="status" aria-live="polite"></p>
+  </section>
+  <section class="me" aria-label="Your hand">
+    <div class="controls" id="controls"></div>
+    <div class="hand" id="hand"></div>
+  </section>
+</div>
+<div class="overlay" id="overlay" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+
+<script>
+const SUITS = ['sun', 'tide', 'ember', 'moon'];
+const NAMES = { sun: 'Sun', tide: 'Tide', ember: 'Ember', moon: 'Moon' };
+const BOTS = ['Ines', 'Bram', 'Kito'];
+const ICON = {
+  sun: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" fill="currentColor"/><path d="M12 1.5v3.2M12 19.3v3.2M1.5 12h3.2M19.3 12h3.2M4.6 4.6l2.2 2.2M17.2 17.2l2.2 2.2M4.6 19.4l2.2-2.2M17.2 6.8l2.2-2.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>',
+  tide: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5c2.5-3 5-3 7.5 0s5 3 7.5 0 3.5-2.4 5-1.4M2 15.5c2.5-3 5-3 7.5 0s5 3 7.5 0 3.5-2.4 5-1.4" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" fill="none"/></svg>',
+  ember: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.5 1.5c.6 4.2 6.5 6.4 6.5 12.6a7 7 0 0 1-14 0c0-3.2 1.8-5.4 3.2-6.6.1 2.2 1 3.4 2.3 3.6-.3-3.4-.4-6.6 2-9.6z" fill="currentColor"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 2.2A10 10 0 1 0 21.8 17 8.2 8.2 0 0 1 15.5 2.2z" fill="currentColor"/></svg>',
+  block: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3" fill="none"/><path d="M5.8 18.2L18.2 5.8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>',
+  flip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 20V4M7 4L3 8M7 4l4 4M17 4v16M17 20l-4-4M17 20l4-4" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+  order: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 3.5v4.5h-4.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>'
+};
+const ROSETTE = '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 20V2l18 18z" style="fill:var(--sun)"/><path d="M20 20h18L20 38z" style="fill:var(--tide)"/><path d="M20 20v18L2 20z" style="fill:var(--ember)"/><path d="M20 20H2L20 2z" style="fill:var(--moon)"/></svg>';
+const KIND_LABEL = { block: 'Block', flip: 'Flip', plus2: '+2', shift: 'Shift', shift4: 'Shift +4' };
+
+const $ = id => document.getElementById(id);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let state = null, botTimer = null, lastTop = null;
+const ui = { sheet: null, setup: { numOpp: 3, target: 250 } };
+
+const rid = () => Math.random().toString(36).slice(2, 10);
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const mk = (suit, kind, value = null) => ({ id: rid(), suit, kind, value });
+function buildDeck() {
+  const d = [];
+  for (const s of SUITS) {
+    d.push(mk(s, 'num', 0));
+    for (let v = 1; v <= 9; v++) d.push(mk(s, 'num', v), mk(s, 'num', v));
+    for (const k of ['block', 'flip', 'plus2']) d.push(mk(s, k), mk(s, k));
+  }
+  for (let i = 0; i < 4; i++) d.push(mk(null, 'shift'), mk(null, 'shift4'));
+  return shuffle(d);
+}
+const isWild = c => c.kind === 'shift' || c.kind === 'shift4';
+const label = c => (c.suit ? NAMES[c.suit] + ' ' : '') + (c.kind === 'num' ? String(c.value) : KIND_LABEL[c.kind]);
+const points = c => c.kind === 'num' ? c.value : isWild(c) ? 50 : 20;
+const top = () => state.discard[state.discard.length - 1];
+const nm = i => i === 0 ? 'You' : state.players[i].name;
+function canPlay(c) {
+  if (isWild(c) || c.suit === state.suit) return true;
+  const t = top();
+  if (c.kind !== t.kind) return false;
+  return c.kind !== 'num' || c.value === t.value;
+}
+function nextIdx(from, steps = 1) { const n = state.players.length; return ((from + state.dir * steps) % n + n) % n; }
+function drawOne() {
+  if (!state.deck.length) { const t = state.discard.pop(); state.deck = shuffle(state.discard); state.discard = [t]; }
+  return state.deck.pop() || null;
+}
+function give(pi, k) {
+  const p = state.players[pi];
+  for (let i = 0; i < k; i++) { const c = drawOne(); if (!c) break; p.hand.push(c); }
+  if (p.hand.length > 1) p.called = false;
+}
+function suitCounts(hand) { const o = { sun: 0, tide: 0, ember: 0, moon: 0 }; hand.forEach(c => { if (c.suit) o[c.suit]++; }); return o; }
+const ORDER = { num: 0, block: 1, flip: 2, plus2: 3, shift: 4, shift4: 5 };
+function sortHand(h) { h.sort((a, b) => (a.suit ? SUITS.indexOf(a.suit) : 9) - (b.suit ? SUITS.indexOf(b.suit) : 9) || ORDER[a.kind] - ORDER[b.kind] || (a.value ?? 0) - (b.value ?? 0)); }
+const say = t => { state.msg = t; };
+
+function newGame(numOpp, target) {
+  clearTimeout(botTimer); botTimer = null;
+  const mkP = (name, human) => ({ name, human, score: 0, hand: [], called: false });
+  state = { target, round: 0, players: [mkP('You', true), ...BOTS.slice(0, numOpp).map(n => mkP(n, false))],
+    deck: [], discard: [], turn: 0, dir: 1, suit: 'sun', drawnId: null, phase: 'play', pendingId: null, result: null, msg: '' };
+  try { localStorage.setItem('fourfold-setup', JSON.stringify({ numOpp, target })); } catch (e) {}
+  startRound();
+}
+function startRound() {
+  clearTimeout(botTimer); botTimer = null;
+  const s = state;
+  s.deck = buildDeck();
+  s.players.forEach(p => { p.hand = s.deck.splice(0, 7); p.called = false; });
+  let f;
+  for (;;) { f = s.deck.pop(); if (f.kind === 'num') break; s.deck.unshift(f); }
+  s.discard = [f]; s.suit = f.suit; s.dir = 1;
+  s.turn = s.round % s.players.length; s.round++;
+  s.drawnId = null; s.phase = 'play'; s.pendingId = null; s.result = null;
+  say(`Round ${s.round}. ${s.turn === 0 ? 'You start' : s.players[s.turn].name + ' starts'}. Match the ${NAMES[s.suit]} suit or the number ${f.value}.`);
+  render();
+}
+
+function commitPlay(pi, c, chosen, pre = '') {
+  const s = state, p = s.players[pi], you = pi === 0;
+  p.hand.splice(p.hand.indexOf(c), 1);
+  s.discard.push(c); s.drawnId = null;
+  s.suit = c.suit || chosen;
+  let m = `${pre}${nm(pi)} played ${label(c)}${isWild(c) ? ` and chose ${NAMES[s.suit]}` : ''}.`;
+  if (p.hand.length === 1) {
+    if (p.called) m += ` ${you ? 'You call' : p.name + ' calls'} “Last card!”`;
+    else { give(pi, 2); m += ` ${you ? 'You' : p.name} forgot to call Last card and ${you ? 'draw' : 'draws'} 2.`; }
+  }
+  p.called = false;
+  if (!p.hand.length) { endRound(pi); return; }
+  let skip = false;
+  if (c.kind === 'flip') { s.dir *= -1; m += ' Play order reversed.'; if (s.players.length === 2) skip = true; }
+  if (c.kind === 'block') { const v = nextIdx(pi); m += ` ${nm(v)} ${v === 0 ? 'are' : 'is'} blocked.`; skip = true; }
+  if (c.kind === 'plus2' || c.kind === 'shift4') {
+    const v = nextIdx(pi), k = c.kind === 'plus2' ? 2 : 4;
+    give(v, k);
+    m += ` ${nm(v)} ${v === 0 ? 'draw' : 'draws'} ${k} and ${v === 0 ? 'lose your' : 'loses their'} turn.`;
+    skip = true;
+  }
+  s.turn = nextIdx(pi, skip ? 2 : 1);
+  say(m); render();
+}
+function endRound(wi) {
+  const s = state;
+  let pts = 0;
+  s.players.forEach((p, i) => { if (i !== wi) pts += p.hand.reduce((a, c) => a + points(c), 0); });
+  s.players[wi].score += pts;
+  s.phase = 'roundOver';
+  s.result = { winner: wi, pts, over: s.players[wi].score >= s.target };
+  say(`${nm(wi)} ${wi === 0 ? 'go' : 'goes'} out and ${wi === 0 ? 'score' : 'scores'} ${pts}.`);
+  render();
+}
+
+/* Your moves */
+const myTurn = () => state.phase === 'play' && state.turn === 0;
+function humanPlay(id) {
+  const s = state, me = s.players[0];
+  if (!myTurn()) return;
+  const c = me.hand.find(x => x.id === id);
+  if (!c) return;
+  if (s.drawnId && c.id !== s.drawnId) { say('After drawing you can only play the card you drew. Otherwise pass.'); render(); return; }
+  if (!canPlay(c)) { const t = top(); say(`${label(c)} doesn't fit. Play a ${NAMES[s.suit]} card${t.kind === 'num' ? `, a ${t.value}` : isWild(t) ? '' : `, a ${KIND_LABEL[t.kind]}`} or a Shift.`); render(); return; }
+  if (isWild(c)) { s.phase = 'pickSuit'; s.pendingId = id; render(); return; }
+  commitPlay(0, c, null);
+}
+function pickSuit(suit) {
+  const s = state, c = s.players[0].hand.find(x => x.id === s.pendingId);
+  s.phase = 'play'; s.pendingId = null;
+  if (c) commitPlay(0, c, suit); else render();
+}
+function humanDraw() {
+  const s = state, me = s.players[0];
+  if (!myTurn() || s.drawnId) return;
+  const c = drawOne();
+  if (!c) { s.turn = nextIdx(0); say('The deck is empty, so you pass.'); render(); return; }
+  me.hand.push(c); me.called = false;
+  if (canPlay(c)) { s.drawnId = c.id; say(`You drew ${label(c)}. Play it or pass.`); }
+  else { s.turn = nextIdx(0); say(`You drew ${label(c)}. It doesn't fit, so you pass.`); }
+  render();
+}
+function humanPass() {
+  const s = state;
+  if (!myTurn() || !s.drawnId) return;
+  s.drawnId = null; s.turn = nextIdx(0); say('You passed.'); render();
+}
+function humanCall() {
+  const me = state.players[0];
+  if (!myTurn() || me.hand.length !== 2) return;
+  me.called = true; say('You called Last card. Now play one of your two cards.'); render();
+}
+
+/* Opponents */
+function botMove() {
+  const s = state;
+  if (s.phase !== 'play') return;
+  const pi = s.turn, p = s.players[pi];
+  if (p.human) return;
+  let opts = p.hand.filter(canPlay), pre = '';
+  if (!opts.length) {
+    const c = drawOne();
+    if (c) { p.hand.push(c); p.called = false; }
+    if (c && canPlay(c)) { opts = [c]; pre = `${p.name} drew a card. `; }
+    else { s.turn = nextIdx(pi); say(`${p.name} drew a card and passed.`); render(); return; }
+  }
+  const nextN = s.players[nextIdx(pi)].hand.length, counts = suitCounts(p.hand);
+  let best = null, bs = -Infinity;
+  for (const c of opts) {
+    let sc = c.kind === 'num' ? 4 + c.value * .3 : c.kind === 'shift' ? 1 : c.kind === 'shift4' ? (nextN <= 2 ? 30 : 0) : 6 + (nextN <= 2 ? 20 : 0);
+    if (c.suit) sc += counts[c.suit] * 1.2;
+    sc += Math.random();
+    if (sc > bs) { bs = sc; best = c; }
+  }
+  if (p.hand.length === 2) p.called = Math.random() < .85;
+  let chosen = null;
+  if (isWild(best)) {
+    const rest = suitCounts(p.hand.filter(c => c !== best));
+    chosen = SUITS[Math.floor(Math.random() * 4)];
+    let bv = 0;
+    for (const su of SUITS) if (rest[su] > bv) { bv = rest[su]; chosen = su; }
+  }
+  commitPlay(pi, best, chosen, pre);
+}
+
+/* Drawing the table */
+const rot = id => { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0; return (Math.abs(h) % 17) - 8; };
+const BACK = `<span class="card back" aria-hidden="true"><span class="frame"></span><span class="face"><span class="glyph">${ROSETTE}</span></span></span>`;
+function cardHTML(c, o = {}) {
+  const tag = o.button ? 'button' : 'div';
+  const attrs = o.button ? ` type="button" data-id="${c.id}" aria-label="${label(c)}"` : ` role="img" aria-label="${label(c)}"`;
+  const style = o.rot != null ? ` style="--r:${o.rot}deg"` : '';
+  let corner, center;
+  if (c.kind === 'num') { const ul = c.value === 6 || c.value === 9 ? ' class="ul"' : ''; corner = `<span${ul}>${c.value}</span>`; center = `<span class="num${ul ? ' ul' : ''}">${c.value}</span>`; }
+  else if (c.kind === 'plus2') { corner = '+2'; center = '<span class="num sm">+2</span>'; }
+  else if (c.kind === 'block' || c.kind === 'flip') { corner = ICON[c.kind]; center = `<span class="glyph">${ICON[c.kind]}</span>`; }
+  else if (c.kind === 'shift') { corner = ROSETTE; center = `<span class="glyph">${ROSETTE}</span>`; }
+  else { corner = '+4'; center = `<span class="glyph">${ROSETTE}<b>+4</b></span>`; }
+  const pip = c.suit ? `<span class="pip">${ICON[c.suit]}</span><span class="pip br">${ICON[c.suit]}</span>` : '';
+  return `<${tag} class="card k-${c.kind}${isWild(c) ? ' wild' : ''} ${o.cls || ''}"${c.suit ? ` data-suit="${c.suit}"` : ''}${attrs}${style}><span class="frame"></span><span class="corner">${corner}</span><span class="corner br">${corner}</span>${pip}<span class="face">${center}</span></${tag}>`;
+}
+
+function render() {
+  const s = state, me = s.players[0], mine = myTurn();
+  sortHand(me.hand);
+
+  $('scores').innerHTML = s.players.map((p, i) => `<span class="score${i === s.turn && s.phase === 'play' ? ' on' : ''}"><b>${p.name}</b>${p.score}</span>`).join('') + `<span class="target">first to ${s.target}</span>`;
+
+  $('seats').innerHTML = s.players.slice(1).map((p, k) => {
+    const i = k + 1, n = p.hand.length;
+    const minis = '<i class="mini"></i>'.repeat(Math.min(n, 12));
+    return `<div class="seat${i === s.turn && s.phase === 'play' ? ' active' : ''}"><div class="who"><span class="avatar">${p.name[0]}</span><span>${p.name}</span>${n === 1 ? '<span class="flag">Last card</span>' : ''}</div><div class="fan" aria-hidden="true">${minis}</div><div class="count">${n} card${n === 1 ? '' : 's'}</div></div>`;
+  }).join('');
+
+  const dp = $('drawPile');
+  dp.disabled = !(mine && !s.drawnId);
+  dp.innerHTML = `${BACK}<span class="pile-label">${s.deck.length} left</span>`;
+
+  const t = top(), fresh = t.id !== lastTop;
+  lastTop = t.id;
+  $('discard').innerHTML = s.discard.slice(-3, -1).map(c => cardHTML(c, { cls: 'under', rot: rot(c.id) })).join('') + cardHTML(t, { cls: 'topcard' + (fresh ? ' fresh' : ''), rot: rot(t.id) });
+  $('discard').style.setProperty('--chosen', `var(--${s.suit})`);
+
+  $('stateLine').innerHTML = `<span class="chip" style="--c:var(--${s.suit})">${ICON[s.suit]}<span>Suit: ${NAMES[s.suit]}</span></span><span class="chip order${s.dir < 0 ? ' rev' : ''}">${ICON.order}<span>${s.dir > 0 ? 'Clockwise' : 'Counter-clockwise'}</span></span>`;
+  $('status').textContent = s.msg;
+
+  const hand = $('hand');
+  hand.innerHTML = me.hand.map(c => {
+    const ok = mine && canPlay(c) && (!s.drawnId || c.id === s.drawnId);
+    return cardHTML(c, { button: true, cls: (mine ? (ok ? 'playable' : 'dim') : '') + (c.id === s.drawnId ? ' drawn' : '') });
+  }).join('');
+  fitHand();
+
+  let turnText = '';
+  if (s.phase === 'play') turnText = mine ? (s.drawnId ? 'Play the drawn card or pass' : me.hand.some(canPlay) ? 'Your turn' : 'No match. Draw a card') : `${s.players[s.turn].name} is playing…`;
+  $('controls').innerHTML = `<span class="turn${mine ? ' mine' : ''}">${turnText}</span><div class="btns"><button type="button" id="bDraw"${mine && !s.drawnId ? '' : ' disabled'}>Draw</button><button type="button" id="bPass"${mine && s.drawnId ? '' : ' disabled'}>Pass</button><button type="button" id="bCall" class="call${me.called ? ' set' : ''}"${mine && me.hand.length === 2 && !me.called ? '' : ' disabled'}>${me.called ? 'Called' : 'Last card!'}</button></div>`;
+
+  renderSheet();
+
+  if (s.phase === 'play' && !s.players[s.turn].human && !botTimer) {
+    botTimer = setTimeout(() => { botTimer = null; botMove(); }, reduceMotion ? 500 : 950);
+  }
+}
+function fitHand() {
+  const hand = $('hand'), cards = hand.children, n = cards.length;
+  if (n < 2) return;
+  const cw = cards[0].offsetWidth, avail = hand.clientWidth - 12;
+  const ov = Math.max(-0.66, Math.min(0.08, (avail - cw) / (n - 1) / cw - 1));
+  hand.style.setProperty('--ov', ov.toFixed(3));
+}
+
+function renderSheet() {
+  const s = state, ov = $('overlay'), sh = $('sheet');
+  let html = '';
+  if (ui.sheet === 'rules') {
+    html = `<h2>How to play</h2>
+      <p>Be the first to empty your hand. On your turn, play one card that matches the top of the pile by <strong>suit</strong>, <strong>number</strong> or <strong>action</strong>. If you can't, draw one. You may play the drawn card if it fits.</p>
+      <div class="legend">
+        ${cardHTML({ id: 'r1', suit: 'ember', kind: 'block' })}<p><strong>Block.</strong> The next player loses their turn.</p>
+        ${cardHTML({ id: 'r2', suit: 'tide', kind: 'flip' })}<p><strong>Flip.</strong> Reverses the play order. With two players it works like Block.</p>
+        ${cardHTML({ id: 'r3', suit: 'sun', kind: 'plus2' })}<p><strong>+2.</strong> The next player draws two and loses their turn.</p>
+        ${cardHTML({ id: 'r4', suit: null, kind: 'shift' })}<p><strong>Shift.</strong> Plays on anything. You choose the next suit.</p>
+        ${cardHTML({ id: 'r5', suit: null, kind: 'shift4' })}<p><strong>Shift +4.</strong> Choose the suit, and the next player draws four and loses their turn.</p>
+      </div>
+      <p>When you're down to two cards, press <strong>Last card!</strong> before you play. Forget, and you draw two.</p>
+      <p>The winner of a round scores the cards left in everyone else's hands: numbers at face value, actions 20, Shifts 50.</p>
+      <div class="row"><button type="button" class="primary" data-act="close">Back to the table</button></div>`;
+  } else if (ui.sheet === 'setup') {
+    const seg = (key, vals, fmt) => vals.map(v => `<button type="button" id="seg-${key}-${v}" data-seg="${key}" data-val="${v}" aria-pressed="${ui.setup[key] === v}">${fmt(v)}</button>`).join('');
+    html = `<h2>New game</h2>
+      <div class="field"><span>Opponents</span><div class="seg">${seg('numOpp', [1, 2, 3], v => v)}</div></div>
+      <div class="field"><span>Play to</span><div class="seg">${seg('target', [100, 250, 500], v => v + ' pts')}</div></div>
+      <p>Starting a new game clears the current scores.</p>
+      <div class="row"><button type="button" class="secondary" data-act="close">Cancel</button><button type="button" class="primary" data-act="start">Deal</button></div>`;
+  } else if (s.phase === 'pickSuit') {
+    const counts = suitCounts(s.players[0].hand);
+    html = `<h2>Choose the suit</h2>
+      <div class="suits">${SUITS.map(su => `<button type="button" class="suit-btn" id="suit-${su}" data-suit-pick="${su}" style="--c:var(--${su})">${ICON[su]}${NAMES[su]}<small>${counts[su]} in hand</small></button>`).join('')}</div>
+      <div class="row"><button type="button" class="secondary" data-act="cancelPick">Keep the card</button></div>`;
+  } else if (s.phase === 'roundOver') {
+    const r = s.result, w = s.players[r.winner];
+    const tally = s.players.map((p, i) => `<div class="${i === r.winner ? 'win' : ''}"><span>${p.name}</span><span>${p.score} pts · ${p.hand.length} card${p.hand.length === 1 ? '' : 's'} left</span></div>`).join('');
+    html = `<h2>${r.over ? (r.winner === 0 ? 'You win the game' : w.name + ' wins the game') : (r.winner === 0 ? 'You went out' : w.name + ' went out')}</h2>
+      <p>${r.winner === 0 ? 'You score' : w.name + ' scores'} <strong>${r.pts}</strong> from the cards left in the other hands.</p>
+      <div class="tally">${tally}</div>
+      <div class="row">${r.over ? `<button type="button" class="primary" data-act="again">Play again</button>` : `<button type="button" class="primary" data-act="next">Deal round ${s.round + 1}</button>`}</div>`;
+  }
+  ov.hidden = !html;
+  if (html && sh.dataset.view !== (ui.sheet || s.phase) + JSON.stringify(ui.setup)) {
+    sh.innerHTML = html;
+    sh.dataset.view = (ui.sheet || s.phase) + JSON.stringify(ui.setup);
+    const first = sh.querySelector('.primary, .suit-btn');
+    if (first) first.focus({ preventScroll: true });
+  }
+  if (!html) sh.dataset.view = '';
+}
+
+/* Events */
+$('hand').addEventListener('click', e => { const b = e.target.closest('[data-id]'); if (b) humanPlay(b.dataset.id); });
+$('drawPile').addEventListener('click', humanDraw);
+$('controls').addEventListener('click', e => {
+  const id = e.target.closest('button')?.id;
+  if (id === 'bDraw') humanDraw(); else if (id === 'bPass') humanPass(); else if (id === 'bCall') humanCall();
+});
+$('rulesBtn').addEventListener('click', () => { ui.sheet = 'rules'; render(); });
+$('newBtn').addEventListener('click', () => { ui.sheet = 'setup'; render(); });
+$('sheet').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.suitPick) return pickSuit(b.dataset.suitPick);
+  if (b.dataset.seg) { ui.setup[b.dataset.seg] = Number(b.dataset.val); return render(); }
+  const act = b.dataset.act;
+  if (act === 'close') { ui.sheet = null; render(); }
+  else if (act === 'start') { ui.sheet = null; newGame(ui.setup.numOpp, ui.setup.target); }
+  else if (act === 'cancelPick') { state.phase = 'play'; state.pendingId = null; render(); }
+  else if (act === 'next') startRound();
+  else if (act === 'again') newGame(state.players.length - 1, state.target);
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (ui.sheet) { ui.sheet = null; render(); }
+  else if (state.phase === 'pickSuit') { state.phase = 'play'; state.pendingId = null; render(); }
+});
+addEventListener('resize', () => state && fitHand());
+
+$('brandMark').innerHTML = ROSETTE;
+
+function start(data) {
+  try { const saved = JSON.parse(localStorage.getItem('fourfold-setup') || 'null'); if (saved) Object.assign(ui.setup, saved); } catch (e) {}
+  if (data && data.state) { state = data.state; render(); }
+  else newGame(ui.setup.numOpp, ui.setup.target);
+}
+window.claude?.hot?.snapshot?.(() => ({ state }));
+if (window.claude?.hot?.ready) window.claude.hot.ready(start); else start(window.claude?.hot?.data ?? {});
+</script>
